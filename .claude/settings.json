@@ -3,7 +3,8 @@
     "allow": [
       "Bash(git rm:*)",
       "Bash(git reset:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Read(//mnt/c/Users/ahafa/Desktop/VJ/RecoFace/projeto1/**)"
     ]
   }
 }
