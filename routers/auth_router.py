@@ -9,6 +9,18 @@ import auth
 router = APIRouter()
 
 
+def _user_response(u: models.User) -> schemas.UserResponse:
+    return schemas.UserResponse(
+        id=u.id,
+        name=u.name,
+        email=u.email,
+        role=u.role,
+        is_active=u.is_active,
+        org_name=u.organization.name if u.organization else None,
+        created_at=u.created_at,
+    )
+
+
 @router.post("/login", response_model=schemas.Token)
 def login(
     credentials: schemas.UserLogin,
@@ -31,17 +43,23 @@ def login(
 
 @router.get("/me", response_model=schemas.UserResponse)
 def get_me(current_user: models.User = Depends(auth.get_current_active_user)):
-    return current_user
+    return _user_response(current_user)
 
 
-# ─── Admin-only: User management ────────────────────────────────────────────
+# ─── Admin-only: User management (same org) ─────────────────────────────────
 
 @router.get("/users", response_model=List[schemas.UserResponse])
 def list_users(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.require_admin),
 ):
-    return db.query(models.User).order_by(models.User.created_at.desc()).all()
+    users = (
+        db.query(models.User)
+        .filter(models.User.org_id == current_user.org_id)
+        .order_by(models.User.created_at.desc())
+        .all()
+    )
+    return [_user_response(u) for u in users]
 
 
 @router.post("/users", response_model=schemas.UserResponse)
@@ -57,6 +75,7 @@ def create_user(
         raise HTTPException(status_code=400, detail="Este email já está cadastrado")
 
     new_user = models.User(
+        org_id=current_user.org_id,
         name=user_data.name.strip(),
         email=user_data.email.lower().strip(),
         hashed_password=auth.get_password_hash(user_data.password),
@@ -65,7 +84,7 @@ def create_user(
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
-    return new_user
+    return _user_response(new_user)
 
 
 @router.patch("/users/{user_id}/toggle")
@@ -74,7 +93,10 @@ def toggle_user(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.require_admin),
 ):
-    user = db.query(models.User).filter(models.User.id == user_id).first()
+    user = db.query(models.User).filter(
+        models.User.id == user_id,
+        models.User.org_id == current_user.org_id,
+    ).first()
     if not user:
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
     if user.id == current_user.id:
@@ -90,7 +112,10 @@ def delete_user(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.require_admin),
 ):
-    user = db.query(models.User).filter(models.User.id == user_id).first()
+    user = db.query(models.User).filter(
+        models.User.id == user_id,
+        models.User.org_id == current_user.org_id,
+    ).first()
     if not user:
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
     if user.id == current_user.id:

@@ -34,9 +34,11 @@ def get_logs(
     recognized: Optional[bool] = None,
     authorized: Optional[bool] = None,
     db: Session = Depends(get_db),
-    _: models.User = Depends(auth.require_any),
+    current_user: models.User = Depends(auth.require_any),
 ):
-    query = db.query(models.RecognitionLog)
+    query = db.query(models.RecognitionLog).filter(
+        models.RecognitionLog.org_id == current_user.org_id,
+    )
     if camera_id is not None:
         query = query.filter(models.RecognitionLog.camera_id == camera_id)
     if recognized is not None:
@@ -53,18 +55,22 @@ def get_logs(
     return [_build_log_response(log) for log in logs]
 
 
+# NOTE: /stats and /clear MUST be defined BEFORE /{log_id} to avoid path conflicts
+
 @router.get("/stats")
 def get_stats(
     db: Session = Depends(get_db),
-    _: models.User = Depends(auth.require_any),
+    current_user: models.User = Depends(auth.require_any),
 ):
-    total = db.query(models.RecognitionLog).count()
-    recognized = db.query(models.RecognitionLog).filter(models.RecognitionLog.recognized == True).count()
-    authorized = db.query(models.RecognitionLog).filter(models.RecognitionLog.is_authorized == True).count()
-    alerts = db.query(models.RecognitionLog).filter(models.RecognitionLog.recognized == False).count()
-    persons = db.query(models.Person).count()
-    cameras = db.query(models.Camera).count()
-    active_cameras = db.query(models.Camera).filter(models.Camera.is_active == True).count()
+    oid = current_user.org_id
+    base = db.query(models.RecognitionLog).filter(models.RecognitionLog.org_id == oid)
+    total = base.count()
+    recognized = base.filter(models.RecognitionLog.recognized == True).count()
+    authorized = base.filter(models.RecognitionLog.is_authorized == True).count()
+    alerts = base.filter(models.RecognitionLog.recognized == False).count()
+    persons = db.query(models.Person).filter(models.Person.org_id == oid).count()
+    cameras = db.query(models.Camera).filter(models.Camera.org_id == oid).count()
+    active_cameras = db.query(models.Camera).filter(models.Camera.org_id == oid, models.Camera.is_active == True).count()
 
     return {
         "total_detections": total,
@@ -84,6 +90,42 @@ def clear_logs(
 ):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Apenas administradores podem limpar os logs")
-    db.query(models.RecognitionLog).delete()
+    db.query(models.RecognitionLog).filter(
+        models.RecognitionLog.org_id == current_user.org_id,
+    ).delete()
     db.commit()
     return {"message": "Logs removidos com sucesso"}
+
+
+# Dynamic path parameter - must come AFTER fixed paths like /stats and /clear
+@router.patch("/{log_id}", response_model=schemas.LogResponse)
+def update_log(
+    log_id: int,
+    data: schemas.LogUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_admin_or_configurador),
+):
+    log = db.query(models.RecognitionLog).filter(
+        models.RecognitionLog.id == log_id,
+        models.RecognitionLog.org_id == current_user.org_id,
+    ).first()
+    if not log:
+        raise HTTPException(status_code=404, detail="Log não encontrado")
+
+    if data.person_id is not None:
+        person = db.query(models.Person).filter(
+            models.Person.id == data.person_id,
+            models.Person.org_id == current_user.org_id,
+        ).first()
+        if not person:
+            raise HTTPException(status_code=404, detail="Pessoa não encontrada")
+        log.person_id = person.id
+        log.recognized = True
+        log.is_authorized = person.is_authorized
+
+    if data.notes is not None:
+        log.notes = data.notes
+
+    db.commit()
+    db.refresh(log)
+    return _build_log_response(log)

@@ -9,34 +9,27 @@ from datetime import datetime
 router = APIRouter()
 
 
-def _reload_all_encodings(db: Session) -> None:
-    """Load encodings from PersonPhoto table + legacy Person encodings."""
+def _reload_all_encodings(db: Session, org_id: int) -> None:
     photos = (
         db.query(models.PersonPhoto)
+        .join(models.Person)
         .options(joinedload(models.PersonPhoto.person))
-        .filter(models.PersonPhoto.face_encoding.isnot(None))
+        .filter(
+            models.Person.org_id == org_id,
+            models.PersonPhoto.face_encoding.isnot(None),
+        )
         .all()
     )
     face_service.load_encodings_from_db(photos)
 
-    # Also load legacy encodings from persons without photos
     person_ids_with_photos = {ph.person_id for ph in photos}
+    q = db.query(models.Person).filter(
+        models.Person.org_id == org_id,
+        models.Person.face_encoding.isnot(None),
+    )
     if person_ids_with_photos:
-        legacy = (
-            db.query(models.Person)
-            .filter(
-                models.Person.face_encoding.isnot(None),
-                ~models.Person.id.in_(person_ids_with_photos),
-            )
-            .all()
-        )
-    else:
-        legacy = (
-            db.query(models.Person)
-            .filter(models.Person.face_encoding.isnot(None))
-            .all()
-        )
-    face_service.load_encodings_legacy(legacy)
+        q = q.filter(~models.Person.id.in_(person_ids_with_photos))
+    face_service.load_encodings_legacy(q.all())
 
 
 @router.websocket("/camera/{camera_id}")
@@ -45,14 +38,18 @@ async def camera_websocket(websocket: WebSocket, camera_id: int):
     db: Session = SessionLocal()
 
     try:
-        # Load latest encodings on connection
-        _reload_all_encodings(db)
-
-        # Ensure camera record exists and mark active
+        # Get camera to find org_id
         camera = db.query(models.Camera).filter(models.Camera.id == camera_id).first()
-        if camera:
-            camera.is_active = True
-            db.commit()
+        if not camera:
+            await websocket.close(code=4004, reason="Câmera não encontrada")
+            return
+
+        org_id = camera.org_id
+        camera.is_active = True
+        db.commit()
+
+        # Load encodings for this org
+        _reload_all_encodings(db, org_id)
 
         await websocket.send_text(json.dumps({
             "type": "connected",
@@ -70,24 +67,21 @@ async def camera_websocket(websocket: WebSocket, camera_id: int):
             if not frame_b64:
                 continue
 
-            # Detect & recognize faces
             results = face_service.process_frame(frame_b64)
 
-            # Persist logs and capture photos
-            # Recognized: 1 photo every 15 minutes per person
-            # Unrecognized: 1 photo every 1 minute per camera (all unknowns share key)
             for face in results:
                 if face["recognized"]:
                     person_key = f"person_{face['person_id']}"
-                    interval = 900  # 15 minutes
+                    interval = 900
                 else:
                     person_key = "unknown"
-                    interval = 60  # 1 minute
+                    interval = 60
 
                 if face_service.should_capture(camera_id, person_key, interval_seconds=interval):
                     photo_path = face_service.capture_photo(frame_b64, camera_id, face.get("person_id"))
 
                     log_entry = models.RecognitionLog(
+                        org_id=org_id,
                         camera_id=camera_id,
                         person_id=face.get("person_id"),
                         recognized=face["recognized"],
@@ -103,7 +97,6 @@ async def camera_websocket(websocket: WebSocket, camera_id: int):
                     db.add(log_entry)
                     db.commit()
 
-            # Send results back to client
             await websocket.send_text(json.dumps({
                 "type": "result",
                 "faces": results,
@@ -115,7 +108,6 @@ async def camera_websocket(websocket: WebSocket, camera_id: int):
     except Exception as e:
         print(f"[WebSocket] Error on camera {camera_id}: {e}")
     finally:
-        # Mark camera inactive when client disconnects
         try:
             cam = db.query(models.Camera).filter(models.Camera.id == camera_id).first()
             if cam:

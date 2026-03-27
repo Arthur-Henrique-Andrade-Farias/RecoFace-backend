@@ -9,23 +9,26 @@ import auth
 router = APIRouter()
 
 
-# Everyone can view cameras
 @router.get("/", response_model=List[schemas.CameraResponse])
 def list_cameras(
     db: Session = Depends(get_db),
-    _: models.User = Depends(auth.require_any),
+    current_user: models.User = Depends(auth.require_any),
 ):
-    return db.query(models.Camera).order_by(models.Camera.created_at.desc()).all()
+    return (
+        db.query(models.Camera)
+        .filter(models.Camera.org_id == current_user.org_id)
+        .order_by(models.Camera.created_at.desc())
+        .all()
+    )
 
 
-# Only admin can create/edit/delete cameras
 @router.post("/", response_model=schemas.CameraResponse)
 def create_camera(
     camera: schemas.CameraCreate,
     db: Session = Depends(get_db),
-    _: models.User = Depends(auth.require_admin),
+    current_user: models.User = Depends(auth.require_admin),
 ):
-    db_camera = models.Camera(**camera.dict())
+    db_camera = models.Camera(org_id=current_user.org_id, **camera.dict())
     db.add(db_camera)
     db.commit()
     db.refresh(db_camera)
@@ -37,9 +40,12 @@ def update_camera(
     camera_id: int,
     camera: schemas.CameraCreate,
     db: Session = Depends(get_db),
-    _: models.User = Depends(auth.require_admin),
+    current_user: models.User = Depends(auth.require_admin),
 ):
-    db_camera = db.query(models.Camera).filter(models.Camera.id == camera_id).first()
+    db_camera = db.query(models.Camera).filter(
+        models.Camera.id == camera_id,
+        models.Camera.org_id == current_user.org_id,
+    ).first()
     if not db_camera:
         raise HTTPException(status_code=404, detail="Câmera não encontrada")
     for key, value in camera.dict().items():
@@ -53,9 +59,12 @@ def update_camera(
 def delete_camera(
     camera_id: int,
     db: Session = Depends(get_db),
-    _: models.User = Depends(auth.require_admin),
+    current_user: models.User = Depends(auth.require_admin),
 ):
-    db_camera = db.query(models.Camera).filter(models.Camera.id == camera_id).first()
+    db_camera = db.query(models.Camera).filter(
+        models.Camera.id == camera_id,
+        models.Camera.org_id == current_user.org_id,
+    ).first()
     if not db_camera:
         raise HTTPException(status_code=404, detail="Câmera não encontrada")
     db.delete(db_camera)
@@ -67,9 +76,12 @@ def delete_camera(
 def toggle_camera(
     camera_id: int,
     db: Session = Depends(get_db),
-    _: models.User = Depends(auth.require_admin),
+    current_user: models.User = Depends(auth.require_admin),
 ):
-    db_camera = db.query(models.Camera).filter(models.Camera.id == camera_id).first()
+    db_camera = db.query(models.Camera).filter(
+        models.Camera.id == camera_id,
+        models.Camera.org_id == current_user.org_id,
+    ).first()
     if not db_camera:
         raise HTTPException(status_code=404, detail="Câmera não encontrada")
     db_camera.is_active = not db_camera.is_active

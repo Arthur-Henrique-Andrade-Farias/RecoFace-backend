@@ -66,7 +66,6 @@ def get_current_active_user(
 # ─── Role-based permission helpers ──────────────────────────────────────────
 
 def require_role(allowed_roles: List[str]):
-    """Returns a dependency that checks if the user has one of the allowed roles."""
     def _check(current_user: models.User = Depends(get_current_active_user)) -> models.User:
         if current_user.role not in allowed_roles:
             raise HTTPException(
@@ -77,7 +76,13 @@ def require_role(allowed_roles: List[str]):
     return _check
 
 
-# Convenience dependencies
 require_admin = require_role(["admin"])
-require_admin_or_vigia = require_role(["admin", "vigia"])
-require_any = require_role(["admin", "vigia", "porteiro"])
+require_admin_or_configurador = require_role(["admin", "configurador"])
+require_any = require_role(["admin", "configurador", "visualizador"])
+
+
+# ─── Org helper ──────────────────────────────────────────────────────────────
+
+def get_org_id(current_user: models.User = Depends(get_current_active_user)) -> int:
+    """Returns the org_id of the current user. Use as a dependency."""
+    return current_user.org_id

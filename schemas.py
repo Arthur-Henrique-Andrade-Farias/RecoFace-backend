@@ -11,17 +11,16 @@ class UserLogin(BaseModel):
 
 
 class UserCreate(BaseModel):
-    """Admin creates vigia/porteiro accounts."""
     name: str
     email: str
     password: str
-    role: str = "porteiro"  # vigia or porteiro only (admin via DB)
+    role: str = "visualizador"
 
     @field_validator("role")
     @classmethod
     def role_valid(cls, v):
-        if v not in ("vigia", "porteiro"):
-            raise ValueError("Função deve ser 'vigia' ou 'porteiro'")
+        if v not in ("configurador", "visualizador"):
+            raise ValueError("Função deve ser 'configurador' ou 'visualizador'")
         return v
 
     @field_validator("password")
@@ -45,6 +44,7 @@ class UserResponse(BaseModel):
     email: str
     role: str
     is_active: bool
+    org_name: Optional[str] = None
     created_at: datetime
 
     class Config:
@@ -54,6 +54,46 @@ class UserResponse(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
+
+
+# ─── Person Categories ──────────────────────────────────────────────────────
+
+class PersonCategoryCreate(BaseModel):
+    key: str
+    label: str
+    color: str = "blue"
+    sort_order: int = 0
+
+
+class PersonCategoryResponse(BaseModel):
+    id: int
+    key: str
+    label: str
+    color: str
+    sort_order: int
+
+    class Config:
+        from_attributes = True
+
+
+# ─── Person Fields ───────────────────────────────────────────────────────────
+
+class PersonFieldCreate(BaseModel):
+    key: str
+    label: str
+    required: bool = False
+    sort_order: int = 0
+
+
+class PersonFieldResponse(BaseModel):
+    id: int
+    key: str
+    label: str
+    required: bool
+    sort_order: int
+
+    class Config:
+        from_attributes = True
 
 
 # ─── Person Photos ───────────────────────────────────────────────────────────
@@ -76,12 +116,11 @@ class PersonResponse(BaseModel):
     id: int
     name: str
     role: str
-    department: Optional[str]
     photo_path: Optional[str]
     is_authorized: bool
-    registration_number: Optional[str]
     has_face_encoding: bool
     photo_count: int
+    custom_data: dict = {}
     created_at: datetime
 
     class Config:
@@ -130,3 +169,8 @@ class LogResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class LogUpdate(BaseModel):
+    person_id: Optional[int] = None
+    notes: Optional[str] = None
