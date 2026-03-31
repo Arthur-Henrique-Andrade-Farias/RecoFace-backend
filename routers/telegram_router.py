@@ -37,7 +37,7 @@ class TelegramLinkRequest(BaseModel):
 # ─── Webhook (receives messages from Telegram) ──────────────────────────────
 
 @router.post("/webhook/{org_id}")
-async def telegram_webhook(org_id: int, body: dict, db: Session = Depends(get_db)):
+def telegram_webhook(org_id: int, body: dict, db: Session = Depends(get_db)):
     """Receives messages from Telegram. Responds to /start with the chat ID."""
     org = db.query(models.Organization).filter(models.Organization.id == org_id).first()
     if not org or not org.telegram_bot_token:
