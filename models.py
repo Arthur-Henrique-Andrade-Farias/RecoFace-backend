@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, Boolean, Float, DateTime, Text, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import relationship
 from database import Base
-from datetime import datetime
+from tz import now_brt
 
 
 class Organization(Base):
@@ -12,7 +12,7 @@ class Organization(Base):
     brand_name = Column(String(100), nullable=False, default="RecoFace")
     brand_subtitle = Column(String(100), nullable=False, default="Monitorando vidas")
     brand_logo_path = Column(String(500), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=now_brt)
 
     users = relationship("User", back_populates="organization")
 
@@ -27,7 +27,7 @@ class User(Base):
     hashed_password = Column(String(255), nullable=False)
     role = Column(String(20), nullable=False, default="visualizador")
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=now_brt)
 
     organization = relationship("Organization", back_populates="users")
 
@@ -70,7 +70,7 @@ class Person(Base):
     is_authorized = Column(Boolean, default=True)
     registration_number = Column(String(100), nullable=True)
     custom_data = Column(Text, nullable=True)  # JSON: {"field_key": "value", ...}
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=now_brt)
 
     photos = relationship("PersonPhoto", back_populates="person", cascade="all, delete-orphan")
     logs = relationship("RecognitionLog", back_populates="person")
@@ -84,7 +84,7 @@ class PersonPhoto(Base):
     photo_path = Column(String(500), nullable=False)
     face_encoding = Column(Text, nullable=True)
     label = Column(String(100), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=now_brt)
 
     person = relationship("Person", back_populates="photos")
 
@@ -100,7 +100,7 @@ class Camera(Base):
     description = Column(String(500), nullable=True)
     location = Column(String(255), nullable=True)
     is_active = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=now_brt)
 
     logs = relationship("RecognitionLog", back_populates="camera")
 
@@ -117,7 +117,7 @@ class RecognitionLog(Base):
     confidence = Column(Float, nullable=True)
     photo_path = Column(String(500), nullable=True)
     notes = Column(String(1000), nullable=True)
-    timestamp = Column(DateTime, default=datetime.utcnow)
+    timestamp = Column(DateTime, default=now_brt)
 
     camera = relationship("Camera", back_populates="logs")
     person = relationship("Person", back_populates="logs")

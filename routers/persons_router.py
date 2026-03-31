@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
-from datetime import datetime
+from tz import now_brt
 import json
 import os
 import shutil
@@ -307,7 +307,7 @@ async def add_person_photo(
     if not person:
         raise HTTPException(status_code=404, detail="Pessoa não encontrada")
 
-    filepath = _save_photo_file(person.name, photo, suffix=f"_{person_id}_{int(datetime.now().timestamp())}")
+    filepath = _save_photo_file(person.name, photo, suffix=f"_{person_id}_{int(now_brt().timestamp())}")
     encoding = face_service.extract_encoding_from_image(filepath)
 
     person_photo = models.PersonPhoto(

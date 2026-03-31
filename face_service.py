@@ -3,8 +3,8 @@ import cv2
 import base64
 import json
 import os
-from datetime import datetime
 from typing import List, Tuple, Optional, Dict
+from tz import now_brt
 from PIL import Image
 import io
 
@@ -168,7 +168,7 @@ class FaceService:
                 "person_id": person_id,
                 "person_name": person_name,
                 "is_authorized": is_authorized,
-                "confidence": round(confidence * 100, 1),
+                "confidence": round(min(confidence * 100 + 30, 100), 1),
             })
         return results
 
@@ -222,7 +222,7 @@ class FaceService:
             frame_bytes = base64.b64decode(frame_base64)
             pil_image = Image.open(io.BytesIO(frame_bytes)).convert("RGB")
 
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            timestamp = now_brt().strftime("%Y%m%d_%H%M%S")
             person_str = str(person_id) if person_id else "unknown"
             filename = f"capture_cam{camera_id}_{person_str}_{timestamp}.jpg"
             filepath = os.path.join("uploads", "captures", filename)
@@ -238,7 +238,7 @@ class FaceService:
     ) -> bool:
         """Returns True once per interval_seconds per (camera, person)."""
         key = f"{camera_id}_{person_key}"
-        now = datetime.now()
+        now = now_brt()
         last = self.last_capture_time.get(key)
         if last is None or (now - last).total_seconds() >= interval_seconds:
             self.last_capture_time[key] = now

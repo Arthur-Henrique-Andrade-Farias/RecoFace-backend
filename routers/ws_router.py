@@ -4,7 +4,7 @@ from database import SessionLocal
 import models
 from face_service import face_service
 import json
-from datetime import datetime
+from tz import now_brt
 
 router = APIRouter()
 
@@ -100,7 +100,7 @@ async def camera_websocket(websocket: WebSocket, camera_id: int):
             await websocket.send_text(json.dumps({
                 "type": "result",
                 "faces": results,
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": now_brt().isoformat(),
             }))
 
     except WebSocketDisconnect:
