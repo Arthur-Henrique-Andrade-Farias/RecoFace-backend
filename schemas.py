@@ -56,6 +56,22 @@ class Token(BaseModel):
     token_type: str
 
 
+# ─── Branding ───────────────────────────────────────────────────────────────
+
+class BrandingResponse(BaseModel):
+    brand_name: str
+    brand_subtitle: str
+    brand_logo_url: Optional[str]
+
+    class Config:
+        from_attributes = True
+
+
+class BrandingUpdate(BaseModel):
+    brand_name: Optional[str] = None
+    brand_subtitle: Optional[str] = None
+
+
 # ─── Person Categories ──────────────────────────────────────────────────────
 
 class PersonCategoryCreate(BaseModel):
@@ -174,3 +190,11 @@ class LogResponse(BaseModel):
 class LogUpdate(BaseModel):
     person_id: Optional[int] = None
     notes: Optional[str] = None
+
+
+class PersonFromLog(BaseModel):
+    log_id: int
+    name: str
+    role: str = "student"
+    is_authorized: bool = True
+    custom_data: Optional[dict] = None

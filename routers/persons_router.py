@@ -106,6 +106,57 @@ def reload_encodings(
     return {"message": f"Encodings recarregados: {len(face_service.known_encodings)} encoding(s)"}
 
 
+@router.post("/from-log", response_model=schemas.PersonResponse)
+def create_person_from_log(
+    data: schemas.PersonFromLog,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_admin_or_configurador),
+):
+    """Create a person using a log entry's captured photo."""
+    log = db.query(models.RecognitionLog).filter(
+        models.RecognitionLog.id == data.log_id,
+        models.RecognitionLog.org_id == current_user.org_id,
+    ).first()
+    if not log:
+        raise HTTPException(status_code=404, detail="Log não encontrado")
+    if not log.photo_path:
+        raise HTTPException(status_code=400, detail="Este log não possui foto capturada")
+
+    # Extract face encoding from the log photo
+    encoding = face_service.extract_encoding_from_image(log.photo_path)
+
+    person = models.Person(
+        org_id=current_user.org_id,
+        name=data.name,
+        role=data.role,
+        is_authorized=data.is_authorized,
+        photo_path=log.photo_path,
+        face_encoding=json.dumps(encoding) if encoding else None,
+        custom_data=json.dumps(data.custom_data) if data.custom_data else None,
+    )
+    db.add(person)
+    db.flush()
+
+    # Create PersonPhoto entry
+    photo = models.PersonPhoto(
+        person_id=person.id,
+        photo_path=log.photo_path,
+        face_encoding=json.dumps(encoding) if encoding else None,
+        label="Foto do log",
+    )
+    db.add(photo)
+
+    # Update the log to link to this person
+    log.person_id = person.id
+    log.recognized = True
+    log.is_authorized = data.is_authorized
+
+    db.commit()
+    db.refresh(person)
+    _reload_encodings(db, current_user.org_id)
+    return _build_person_response(person)
+
+
 @router.post("/", response_model=schemas.PersonResponse)
 async def create_person(
     name: str = Form(...),

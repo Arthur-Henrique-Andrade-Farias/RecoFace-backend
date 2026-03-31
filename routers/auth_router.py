@@ -1,6 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
+import os
+import shutil
 from database import get_db
 import models
 import schemas
@@ -44,6 +46,69 @@ def login(
 @router.get("/me", response_model=schemas.UserResponse)
 def get_me(current_user: models.User = Depends(auth.get_current_active_user)):
     return _user_response(current_user)
+
+
+# ─── Branding ────────────────────────────────────────────────────────────────
+
+def _branding_response(org: models.Organization) -> schemas.BrandingResponse:
+    logo_url = f"/uploads/{org.brand_logo_path}" if org.brand_logo_path else None
+    return schemas.BrandingResponse(
+        brand_name=org.brand_name or "RecoFace",
+        brand_subtitle=org.brand_subtitle or "Monitorando vidas",
+        brand_logo_url=logo_url,
+    )
+
+
+@router.get("/branding", response_model=schemas.BrandingResponse)
+def get_branding(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_active_user),
+):
+    org = db.query(models.Organization).filter(models.Organization.id == current_user.org_id).first()
+    if not org:
+        return schemas.BrandingResponse(brand_name="RecoFace", brand_subtitle="Monitorando vidas", brand_logo_url=None)
+    return _branding_response(org)
+
+
+@router.put("/branding", response_model=schemas.BrandingResponse)
+def update_branding(
+    data: schemas.BrandingUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_manager),
+):
+    org = db.query(models.Organization).filter(models.Organization.id == current_user.org_id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organização não encontrada")
+    if data.brand_name is not None:
+        org.brand_name = data.brand_name
+    if data.brand_subtitle is not None:
+        org.brand_subtitle = data.brand_subtitle
+    db.commit()
+    db.refresh(org)
+    return _branding_response(org)
+
+
+@router.post("/branding/logo", response_model=schemas.BrandingResponse)
+async def upload_branding_logo(
+    logo: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_manager),
+):
+    org = db.query(models.Organization).filter(models.Organization.id == current_user.org_id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organização não encontrada")
+
+    os.makedirs("uploads/branding", exist_ok=True)
+    filename = f"logo_org{org.id}_{logo.filename}"
+    filepath = os.path.join("branding", filename)
+    full_path = os.path.join("uploads", filepath)
+    with open(full_path, "wb") as f:
+        shutil.copyfileobj(logo.file, f)
+
+    org.brand_logo_path = filepath
+    db.commit()
+    db.refresh(org)
+    return _branding_response(org)
 
 
 # ─── User management: admin + gerente ────────────────────────────────────────

@@ -9,6 +9,9 @@ class Organization(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), nullable=False)
+    brand_name = Column(String(100), nullable=False, default="RecoFace")
+    brand_subtitle = Column(String(100), nullable=False, default="Monitorando vidas")
+    brand_logo_path = Column(String(500), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     users = relationship("User", back_populates="organization")
