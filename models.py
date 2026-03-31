@@ -12,6 +12,9 @@ class Organization(Base):
     brand_name = Column(String(100), nullable=False, default="RecoFace")
     brand_subtitle = Column(String(100), nullable=False, default="Monitorando vidas")
     brand_logo_path = Column(String(500), nullable=True)
+    telegram_bot_token = Column(String(255), nullable=True)
+    telegram_notify_unrecognized = Column(Boolean, default=True)
+    telegram_notify_recognized = Column(Boolean, default=False)
     created_at = Column(DateTime, default=now_brt)
 
     users = relationship("User", back_populates="organization")
@@ -27,6 +30,8 @@ class User(Base):
     hashed_password = Column(String(255), nullable=False)
     role = Column(String(20), nullable=False, default="visualizador")
     is_active = Column(Boolean, default=True)
+    telegram_chat_id = Column(String(50), nullable=True)
+    telegram_active = Column(Boolean, default=False)
     created_at = Column(DateTime, default=now_brt)
 
     organization = relationship("Organization", back_populates="users")

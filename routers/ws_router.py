@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session, joinedload
 from database import SessionLocal
 import models
 from face_service import face_service
+from telegram_service import telegram_service
 import json
 from tz import now_brt
 
@@ -96,6 +97,10 @@ async def camera_websocket(websocket: WebSocket, camera_id: int):
                     )
                     db.add(log_entry)
                     db.commit()
+
+                    # Telegram notification
+                    cam_name = camera.name if camera else f"Câmera #{camera_id}"
+                    telegram_service.notify_log(db, org_id, face, cam_name, photo_path)
 
             await websocket.send_text(json.dumps({
                 "type": "result",

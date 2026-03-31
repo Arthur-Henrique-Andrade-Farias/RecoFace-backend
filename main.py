@@ -6,7 +6,7 @@ from sqlalchemy.orm import joinedload
 
 from database import engine, Base, SessionLocal
 import models
-from routers import auth_router, cameras_router, persons_router, logs_router, ws_router, categories_router, fields_router, reports_router
+from routers import auth_router, cameras_router, persons_router, logs_router, ws_router, categories_router, fields_router, reports_router, telegram_router
 from face_service import face_service
 
 # ─── DB Init ─────────────────────────────────────────────────────────────────
@@ -45,6 +45,7 @@ app.include_router(logs_router.router, prefix="/api/logs", tags=["Logs"])
 app.include_router(categories_router.router, prefix="/api/categories", tags=["Categorias"])
 app.include_router(fields_router.router, prefix="/api/fields", tags=["Campos"])
 app.include_router(reports_router.router, prefix="/api/reports", tags=["Relatórios"])
+app.include_router(telegram_router.router, prefix="/api/telegram", tags=["Telegram"])
 app.include_router(ws_router.router, prefix="/ws", tags=["WebSocket"])
 
 
