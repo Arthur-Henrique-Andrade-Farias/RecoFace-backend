@@ -38,6 +38,20 @@ class UserCreate(BaseModel):
         return v.lower().strip()
 
 
+class UserUpdate(BaseModel):
+    name: Optional[str] = None
+    role: Optional[str] = None
+    telegram_chat_id: Optional[str] = None
+    telegram_active: Optional[bool] = None
+
+    @field_validator("role")
+    @classmethod
+    def role_valid(cls, v):
+        if v is not None and v not in ("gerente", "configurador", "visualizador"):
+            raise ValueError("Função deve ser 'gerente', 'configurador' ou 'visualizador'")
+        return v
+
+
 class UserResponse(BaseModel):
     id: int
     name: str
@@ -45,6 +59,8 @@ class UserResponse(BaseModel):
     role: str
     is_active: bool
     org_name: Optional[str] = None
+    telegram_chat_id: Optional[str] = None
+    telegram_active: bool = False
     created_at: datetime
 
     class Config:

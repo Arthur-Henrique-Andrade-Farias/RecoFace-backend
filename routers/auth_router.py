@@ -19,6 +19,8 @@ def _user_response(u: models.User) -> schemas.UserResponse:
         role=u.role,
         is_active=u.is_active,
         org_name=u.organization.name if u.organization else None,
+        telegram_chat_id=u.telegram_chat_id,
+        telegram_active=u.telegram_active or False,
         created_at=u.created_at,
     )
 
@@ -154,6 +156,38 @@ def create_user(
     db.commit()
     db.refresh(new_user)
     return _user_response(new_user)
+
+
+@router.put("/users/{user_id}", response_model=schemas.UserResponse)
+def update_user(
+    user_id: int,
+    data: schemas.UserUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_manager),
+):
+    user = db.query(models.User).filter(
+        models.User.id == user_id,
+        models.User.org_id == current_user.org_id,
+    ).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    if user.role == "admin" and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Apenas administradores podem editar outros administradores")
+
+    if data.name is not None:
+        user.name = data.name.strip()
+    if data.role is not None:
+        if current_user.role == "gerente" and data.role == "admin":
+            raise HTTPException(status_code=403, detail="Gerentes não podem promover a administrador")
+        user.role = data.role
+    if data.telegram_chat_id is not None:
+        user.telegram_chat_id = data.telegram_chat_id if data.telegram_chat_id else None
+    if data.telegram_active is not None:
+        user.telegram_active = data.telegram_active
+
+    db.commit()
+    db.refresh(user)
+    return _user_response(user)
 
 
 @router.patch("/users/{user_id}/toggle")
