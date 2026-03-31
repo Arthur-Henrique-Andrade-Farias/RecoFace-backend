@@ -88,7 +88,7 @@ def clear_logs(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.require_any),
 ):
-    if current_user.role != "admin":
+    if current_user.role not in ("admin", "gerente"):
         raise HTTPException(status_code=403, detail="Apenas administradores podem limpar os logs")
     db.query(models.RecognitionLog).filter(
         models.RecognitionLog.org_id == current_user.org_id,

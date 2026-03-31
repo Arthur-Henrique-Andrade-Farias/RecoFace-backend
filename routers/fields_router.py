@@ -26,7 +26,7 @@ def list_fields(
 def create_field(
     data: schemas.PersonFieldCreate,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.require_admin),
+    current_user: models.User = Depends(auth.require_manager),
 ):
     existing = (
         db.query(models.PersonField)
@@ -51,7 +51,7 @@ def update_field(
     field_id: int,
     data: schemas.PersonFieldCreate,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.require_admin),
+    current_user: models.User = Depends(auth.require_manager),
 ):
     field = db.query(models.PersonField).filter(
         models.PersonField.id == field_id,
@@ -71,7 +71,7 @@ def update_field(
 def delete_field(
     field_id: int,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.require_admin),
+    current_user: models.User = Depends(auth.require_manager),
 ):
     field = db.query(models.PersonField).filter(
         models.PersonField.id == field_id,

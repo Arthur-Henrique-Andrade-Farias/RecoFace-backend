@@ -26,7 +26,7 @@ def list_cameras(
 def create_camera(
     camera: schemas.CameraCreate,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.require_admin),
+    current_user: models.User = Depends(auth.require_manager),
 ):
     db_camera = models.Camera(org_id=current_user.org_id, **camera.dict())
     db.add(db_camera)
@@ -40,7 +40,7 @@ def update_camera(
     camera_id: int,
     camera: schemas.CameraCreate,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.require_admin),
+    current_user: models.User = Depends(auth.require_manager),
 ):
     db_camera = db.query(models.Camera).filter(
         models.Camera.id == camera_id,
@@ -59,7 +59,7 @@ def update_camera(
 def delete_camera(
     camera_id: int,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.require_admin),
+    current_user: models.User = Depends(auth.require_manager),
 ):
     db_camera = db.query(models.Camera).filter(
         models.Camera.id == camera_id,
@@ -76,7 +76,7 @@ def delete_camera(
 def toggle_camera(
     camera_id: int,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.require_admin),
+    current_user: models.User = Depends(auth.require_manager),
 ):
     db_camera = db.query(models.Camera).filter(
         models.Camera.id == camera_id,

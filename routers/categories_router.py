@@ -26,7 +26,7 @@ def list_categories(
 def create_category(
     data: schemas.PersonCategoryCreate,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.require_admin),
+    current_user: models.User = Depends(auth.require_manager),
 ):
     existing = (
         db.query(models.PersonCategory)
@@ -51,7 +51,7 @@ def update_category(
     category_id: int,
     data: schemas.PersonCategoryCreate,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.require_admin),
+    current_user: models.User = Depends(auth.require_manager),
 ):
     cat = db.query(models.PersonCategory).filter(
         models.PersonCategory.id == category_id,
@@ -91,7 +91,7 @@ def update_category(
 def delete_category(
     category_id: int,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.require_admin),
+    current_user: models.User = Depends(auth.require_manager),
 ):
     cat = db.query(models.PersonCategory).filter(
         models.PersonCategory.id == category_id,

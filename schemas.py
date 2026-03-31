@@ -19,8 +19,8 @@ class UserCreate(BaseModel):
     @field_validator("role")
     @classmethod
     def role_valid(cls, v):
-        if v not in ("configurador", "visualizador"):
-            raise ValueError("Função deve ser 'configurador' ou 'visualizador'")
+        if v not in ("gerente", "configurador", "visualizador"):
+            raise ValueError("Função deve ser 'gerente', 'configurador' ou 'visualizador'")
         return v
 
     @field_validator("password")

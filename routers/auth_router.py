@@ -46,12 +46,12 @@ def get_me(current_user: models.User = Depends(auth.get_current_active_user)):
     return _user_response(current_user)
 
 
-# ─── Admin-only: User management (same org) ─────────────────────────────────
+# ─── User management: admin + gerente ────────────────────────────────────────
 
 @router.get("/users", response_model=List[schemas.UserResponse])
 def list_users(
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.require_admin),
+    current_user: models.User = Depends(auth.require_manager),
 ):
     users = (
         db.query(models.User)
@@ -66,8 +66,12 @@ def list_users(
 def create_user(
     user_data: schemas.UserCreate,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.require_admin),
+    current_user: models.User = Depends(auth.require_manager),
 ):
+    # Gerente cannot create admin
+    if current_user.role == "gerente" and user_data.role not in ("gerente", "configurador", "visualizador"):
+        raise HTTPException(status_code=403, detail="Gerentes não podem criar administradores")
+
     existing = db.query(models.User).filter(
         models.User.email == user_data.email.lower().strip()
     ).first()
@@ -91,7 +95,7 @@ def create_user(
 def toggle_user(
     user_id: int,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.require_admin),
+    current_user: models.User = Depends(auth.require_manager),
 ):
     user = db.query(models.User).filter(
         models.User.id == user_id,
@@ -101,6 +105,8 @@ def toggle_user(
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
     if user.id == current_user.id:
         raise HTTPException(status_code=400, detail="Você não pode desativar sua própria conta")
+    if user.role == "admin" and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Apenas administradores podem gerenciar outros administradores")
     user.is_active = not user.is_active
     db.commit()
     return {"message": f"Usuário {'ativado' if user.is_active else 'desativado'}"}
@@ -110,7 +116,7 @@ def toggle_user(
 def delete_user(
     user_id: int,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.require_admin),
+    current_user: models.User = Depends(auth.require_manager),
 ):
     user = db.query(models.User).filter(
         models.User.id == user_id,

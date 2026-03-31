@@ -16,6 +16,10 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "480"
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
+# Role hierarchy (higher = more permissions):
+# admin > gerente > configurador > visualizador
+ROLES = ["admin", "gerente", "configurador", "visualizador"]
+
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
@@ -63,8 +67,6 @@ def get_current_active_user(
     return current_user
 
 
-# ─── Role-based permission helpers ──────────────────────────────────────────
-
 def require_role(allowed_roles: List[str]):
     def _check(current_user: models.User = Depends(get_current_active_user)) -> models.User:
         if current_user.role not in allowed_roles:
@@ -77,12 +79,6 @@ def require_role(allowed_roles: List[str]):
 
 
 require_admin = require_role(["admin"])
-require_admin_or_configurador = require_role(["admin", "configurador"])
-require_any = require_role(["admin", "configurador", "visualizador"])
-
-
-# ─── Org helper ──────────────────────────────────────────────────────────────
-
-def get_org_id(current_user: models.User = Depends(get_current_active_user)) -> int:
-    """Returns the org_id of the current user. Use as a dependency."""
-    return current_user.org_id
+require_manager = require_role(["admin", "gerente"])
+require_admin_or_configurador = require_role(["admin", "gerente", "configurador"])
+require_any = require_role(["admin", "gerente", "configurador", "visualizador"])
