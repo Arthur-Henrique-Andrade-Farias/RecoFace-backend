@@ -151,6 +151,8 @@ def create_user(
         email=user_data.email.lower().strip(),
         hashed_password=auth.get_password_hash(user_data.password),
         role=user_data.role,
+        telegram_chat_id=user_data.telegram_chat_id if user_data.telegram_chat_id else None,
+        telegram_active=user_data.telegram_active if user_data.telegram_chat_id else False,
     )
     db.add(new_user)
     db.commit()

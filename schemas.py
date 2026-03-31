@@ -15,6 +15,8 @@ class UserCreate(BaseModel):
     email: str
     password: str
     role: str = "visualizador"
+    telegram_chat_id: Optional[str] = None
+    telegram_active: bool = False
 
     @field_validator("role")
     @classmethod
