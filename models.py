@@ -15,6 +15,10 @@ class Organization(Base):
     telegram_bot_token = Column(String(255), nullable=True)
     telegram_notify_unrecognized = Column(Boolean, default=True)
     telegram_notify_recognized = Column(Boolean, default=False)
+    whatsapp_webhook_url = Column(String(500), nullable=True)
+    whatsapp_phone_field = Column(String(50), nullable=True, default="phone")
+    whatsapp_notify_recognized = Column(Boolean, default=True)
+    whatsapp_notify_unrecognized = Column(Boolean, default=False)
     created_at = Column(DateTime, default=now_brt)
 
     users = relationship("User", back_populates="organization")
@@ -32,6 +36,8 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     telegram_chat_id = Column(String(50), nullable=True)
     telegram_active = Column(Boolean, default=False)
+    whatsapp_phone = Column(String(20), nullable=True)
+    whatsapp_active = Column(Boolean, default=False)
     created_at = Column(DateTime, default=now_brt)
 
     organization = relationship("Organization", back_populates="users")

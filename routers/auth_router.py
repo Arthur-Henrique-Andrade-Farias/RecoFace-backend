@@ -21,6 +21,8 @@ def _user_response(u: models.User) -> schemas.UserResponse:
         org_name=u.organization.name if u.organization else None,
         telegram_chat_id=u.telegram_chat_id,
         telegram_active=u.telegram_active or False,
+        whatsapp_phone=u.whatsapp_phone,
+        whatsapp_active=u.whatsapp_active or False,
         created_at=u.created_at,
     )
 
@@ -113,6 +115,80 @@ async def upload_branding_logo(
     return _branding_response(org)
 
 
+# ─── WhatsApp Config ─────────────────────────────────────────────────────────
+
+@router.get("/whatsapp-config")
+def get_whatsapp_config(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_manager),
+):
+    org = db.query(models.Organization).filter(models.Organization.id == current_user.org_id).first()
+    return {
+        "webhook_url": org.whatsapp_webhook_url or "",
+        "phone_field": org.whatsapp_phone_field or "phone",
+        "notify_recognized": org.whatsapp_notify_recognized if org else True,
+        "notify_unrecognized": org.whatsapp_notify_unrecognized if org else False,
+    }
+
+
+@router.put("/whatsapp-config")
+def update_whatsapp_config(
+    data: dict,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_manager),
+):
+    org = db.query(models.Organization).filter(models.Organization.id == current_user.org_id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organização não encontrada")
+
+    if "webhook_url" in data:
+        org.whatsapp_webhook_url = data["webhook_url"] or None
+    if "phone_field" in data:
+        org.whatsapp_phone_field = data["phone_field"] or "phone"
+    if "notify_recognized" in data:
+        org.whatsapp_notify_recognized = data["notify_recognized"]
+    if "notify_unrecognized" in data:
+        org.whatsapp_notify_unrecognized = data["notify_unrecognized"]
+
+    db.commit()
+    db.refresh(org)
+    return {
+        "webhook_url": org.whatsapp_webhook_url or "",
+        "phone_field": org.whatsapp_phone_field or "phone",
+        "notify_recognized": org.whatsapp_notify_recognized,
+        "notify_unrecognized": org.whatsapp_notify_unrecognized,
+    }
+
+
+@router.post("/whatsapp-test")
+def test_whatsapp(
+    data: dict,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_manager),
+):
+    org = db.query(models.Organization).filter(models.Organization.id == current_user.org_id).first()
+    if not org or not org.whatsapp_webhook_url:
+        raise HTTPException(status_code=400, detail="Configure a URL do webhook primeiro")
+
+    phone = data.get("phone", "")
+    if not phone:
+        raise HTTPException(status_code=400, detail="Informe um número de telefone para teste")
+
+    from whatsapp_service import WhatsAppService
+    from tz import now_brt
+
+    ok = WhatsAppService.send_webhook(org.whatsapp_webhook_url, {
+        "telefone": phone,
+        "nome": "Teste RecoFace",
+        "data_hora": now_brt().isoformat(),
+        "local": "Teste do sistema",
+        "camera_id": "TEST",
+    })
+    if not ok:
+        raise HTTPException(status_code=500, detail="Falha ao enviar para o webhook")
+    return {"message": "Mensagem de teste enviada com sucesso"}
+
+
 # ─── User management: admin + gerente ────────────────────────────────────────
 
 @router.get("/users", response_model=List[schemas.UserResponse])
@@ -153,6 +229,8 @@ def create_user(
         role=user_data.role,
         telegram_chat_id=user_data.telegram_chat_id if user_data.telegram_chat_id else None,
         telegram_active=user_data.telegram_active if user_data.telegram_chat_id else False,
+        whatsapp_phone=user_data.whatsapp_phone if hasattr(user_data, 'whatsapp_phone') else None,
+        whatsapp_active=user_data.whatsapp_active if hasattr(user_data, 'whatsapp_active') and user_data.whatsapp_phone else False,
     )
     db.add(new_user)
     db.commit()
@@ -186,6 +264,10 @@ def update_user(
         user.telegram_chat_id = data.telegram_chat_id if data.telegram_chat_id else None
     if data.telegram_active is not None:
         user.telegram_active = data.telegram_active
+    if data.whatsapp_phone is not None:
+        user.whatsapp_phone = data.whatsapp_phone if data.whatsapp_phone else None
+    if data.whatsapp_active is not None:
+        user.whatsapp_active = data.whatsapp_active
 
     db.commit()
     db.refresh(user)

@@ -45,6 +45,8 @@ class UserUpdate(BaseModel):
     role: Optional[str] = None
     telegram_chat_id: Optional[str] = None
     telegram_active: Optional[bool] = None
+    whatsapp_phone: Optional[str] = None
+    whatsapp_active: Optional[bool] = None
 
     @field_validator("role")
     @classmethod
@@ -63,6 +65,8 @@ class UserResponse(BaseModel):
     org_name: Optional[str] = None
     telegram_chat_id: Optional[str] = None
     telegram_active: bool = False
+    whatsapp_phone: Optional[str] = None
+    whatsapp_active: bool = False
     created_at: datetime
 
     class Config:

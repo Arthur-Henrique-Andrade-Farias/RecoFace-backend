@@ -1,0 +1,88 @@
+"""WhatsApp notification service via n8n webhook for RecoFace.
+Works like Telegram: each User configures their phone and receives alerts."""
+
+import threading
+from typing import Optional
+from sqlalchemy.orm import Session
+import models
+from tz import now_brt
+
+
+class WhatsAppService:
+    @staticmethod
+    def send_webhook(webhook_url: str, payload: dict) -> bool:
+        import httpx
+        try:
+            with httpx.Client(timeout=10) as client:
+                r = client.post(webhook_url, json=payload)
+                if r.status_code in (200, 201, 204):
+                    return True
+                print(f"[WhatsApp] Webhook returned {r.status_code}: {r.text[:200]}")
+        except Exception as e:
+            print(f"[WhatsApp] Error: {e}")
+        return False
+
+    @staticmethod
+    def notify_log(
+        db: Session,
+        org_id: int,
+        face: dict,
+        camera_name: str,
+        camera_id: int,
+        photo_path: Optional[str],
+    ):
+        """Send WhatsApp notification to all active users in the org."""
+        org = db.query(models.Organization).filter(models.Organization.id == org_id).first()
+        if not org or not org.whatsapp_webhook_url:
+            return
+
+        is_recognized = face.get("recognized", False)
+        if is_recognized and not org.whatsapp_notify_recognized:
+            return
+        if not is_recognized and not org.whatsapp_notify_unrecognized:
+            return
+
+        # Get users with active WhatsApp
+        users = (
+            db.query(models.User)
+            .filter(
+                models.User.org_id == org_id,
+                models.User.whatsapp_active == True,
+                models.User.whatsapp_phone.isnot(None),
+            )
+            .all()
+        )
+        if not users:
+            return
+
+        # Collect data
+        webhook_url = org.whatsapp_webhook_url
+        phones = [u.whatsapp_phone for u in users]
+        timestamp = now_brt()
+        person_name = face.get("person_name", "Desconhecido")
+        confidence = face.get("confidence", 0)
+        is_auth = face.get("is_authorized", False)
+
+        if is_recognized:
+            status = "Autorizado" if is_auth else "NAO AUTORIZADO"
+            nome_msg = f"{person_name} ({status}) - Confiança: {confidence}%"
+        else:
+            nome_msg = "Pessoa não identificada na base de dados"
+
+        def _send():
+            for phone in phones:
+                try:
+                    WhatsAppService.send_webhook(webhook_url, {
+                        "telefone": phone,
+                        "nome": nome_msg,
+                        "data_hora": timestamp.isoformat(),
+                        "local": camera_name,
+                        "camera_id": str(camera_id),
+                    })
+                except Exception as e:
+                    print(f"[WhatsApp] Notify error: {e}")
+
+        threading.Thread(target=_send, daemon=True).start()
+
+
+whatsapp_service = WhatsAppService()
