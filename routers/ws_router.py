@@ -102,7 +102,7 @@ async def camera_websocket(websocket: WebSocket, camera_id: int):
                     # Notifications
                     cam_name = camera.name if camera else f"Câmera #{camera_id}"
                     telegram_service.notify_log(db, org_id, face, cam_name, photo_path)
-                    whatsapp_service.notify_log(db, org_id, face, cam_name, camera_id, photo_path)
+                    whatsapp_service.notify_log(db, org_id, face, cam_name, camera_id, photo_path, log_entry.id)
 
             await websocket.send_text(json.dumps({
                 "type": "result",

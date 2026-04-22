@@ -128,6 +128,7 @@ def get_whatsapp_config(
         "phone_field": org.whatsapp_phone_field or "phone",
         "notify_recognized": org.whatsapp_notify_recognized if org else True,
         "notify_unrecognized": org.whatsapp_notify_unrecognized if org else False,
+        "frontend_url": org.frontend_url or "",
     }
 
 
@@ -149,6 +150,8 @@ def update_whatsapp_config(
         org.whatsapp_notify_recognized = data["notify_recognized"]
     if "notify_unrecognized" in data:
         org.whatsapp_notify_unrecognized = data["notify_unrecognized"]
+    if "frontend_url" in data:
+        org.frontend_url = data["frontend_url"].rstrip("/") if data["frontend_url"] else None
 
     db.commit()
     db.refresh(org)
@@ -157,6 +160,7 @@ def update_whatsapp_config(
         "phone_field": org.whatsapp_phone_field or "phone",
         "notify_recognized": org.whatsapp_notify_recognized,
         "notify_unrecognized": org.whatsapp_notify_unrecognized,
+        "frontend_url": org.frontend_url or "",
     }
 
 

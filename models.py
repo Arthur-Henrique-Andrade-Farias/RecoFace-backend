@@ -19,6 +19,7 @@ class Organization(Base):
     whatsapp_phone_field = Column(String(50), nullable=True, default="phone")
     whatsapp_notify_recognized = Column(Boolean, default=True)
     whatsapp_notify_unrecognized = Column(Boolean, default=False)
+    frontend_url = Column(String(500), nullable=True)
     created_at = Column(DateTime, default=now_brt)
 
     users = relationship("User", back_populates="organization")

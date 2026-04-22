@@ -160,7 +160,7 @@ async def rtsp_camera_websocket(websocket: WebSocket, camera_id: int):
                                 worker_db.add(log_entry)
                                 worker_db.commit()
                                 telegram_service.notify_log(worker_db, org_id, face, camera.name, photo_path)
-                                whatsapp_service.notify_log(worker_db, org_id, face, camera.name, camera_id, photo_path)
+                                whatsapp_service.notify_log(worker_db, org_id, face, camera.name, camera_id, photo_path, log_entry.id)
 
                     # Draw boxes and encode frame for streaming
                     annotated = _draw_boxes(frame.copy(), faces) if faces else frame

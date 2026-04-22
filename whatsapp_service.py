@@ -10,17 +10,29 @@ from tz import now_brt
 
 class WhatsAppService:
     @staticmethod
-    def send_webhook(webhook_url: str, payload: dict) -> bool:
+    def send_webhook(webhook_url: str, payload: dict) -> tuple[bool, str]:
+        """Send webhook and return (success, message)"""
         import httpx
         try:
             with httpx.Client(timeout=10) as client:
                 r = client.post(webhook_url, json=payload)
                 if r.status_code in (200, 201, 204):
-                    return True
-                print(f"[WhatsApp] Webhook returned {r.status_code}: {r.text[:200]}")
+                    return True, "Webhook enviado com sucesso"
+                error_msg = f"Webhook retornou {r.status_code}: {r.text[:200]}"
+                print(f"[WhatsApp] {error_msg}")
+                return False, error_msg
+        except httpx.ConnectError as e:
+            msg = f"Erro de conexão ao webhook: {str(e)[:100]}"
+            print(f"[WhatsApp] {msg}")
+            return False, msg
+        except httpx.TimeoutException:
+            msg = "Timeout ao conectar ao webhook (10s)"
+            print(f"[WhatsApp] {msg}")
+            return False, msg
         except Exception as e:
-            print(f"[WhatsApp] Error: {e}")
-        return False
+            msg = f"Erro ao enviar webhook: {str(e)[:100]}"
+            print(f"[WhatsApp] {msg}")
+            return False, msg
 
     @staticmethod
     def notify_log(
@@ -30,6 +42,7 @@ class WhatsAppService:
         camera_name: str,
         camera_id: int,
         photo_path: Optional[str],
+        log_id: Optional[int] = None,
     ):
         """Send WhatsApp notification to all active users in the org."""
         org = db.query(models.Organization).filter(models.Organization.id == org_id).first()
@@ -57,6 +70,7 @@ class WhatsAppService:
 
         # Collect data
         webhook_url = org.whatsapp_webhook_url
+        frontend_url = (org.frontend_url or "").rstrip("/")
         phones = [u.whatsapp_phone for u in users]
         timestamp = now_brt()
         person_name = face.get("person_name", "Desconhecido")
@@ -69,16 +83,24 @@ class WhatsAppService:
         else:
             nome_msg = "Pessoa não identificada na base de dados"
 
+        # Build link to the log
+        link = ""
+        if frontend_url and log_id:
+            link = f"{frontend_url}/logs?log={log_id}"
+
         def _send():
             for phone in phones:
                 try:
-                    WhatsAppService.send_webhook(webhook_url, {
+                    success, message = WhatsAppService.send_webhook(webhook_url, {
                         "telefone": phone,
+                        "link": link,
                         "nome": nome_msg,
                         "data_hora": timestamp.isoformat(),
                         "local": camera_name,
                         "camera_id": str(camera_id),
                     })
+                    if not success:
+                        print(f"[WhatsApp] Falha ao enviar para {phone}: {message}")
                 except Exception as e:
                     print(f"[WhatsApp] Notify error: {e}")
 
