@@ -88,6 +88,13 @@ class WhatsAppService:
         if frontend_url and log_id:
             link = f"{frontend_url}/logs?log={log_id}"
 
+        # Append link to existing fields so n8n templates show it without modification
+        if link:
+            nome_msg = f"{nome_msg}\n\n🔗 Verificar alerta: {link}"
+            local_with_link = f"{camera_name}\n🔗 {link}"
+        else:
+            local_with_link = camera_name
+
         def _send():
             for phone in phones:
                 try:
@@ -96,7 +103,7 @@ class WhatsAppService:
                         "link": link,
                         "nome": nome_msg,
                         "data_hora": timestamp.isoformat(),
-                        "local": camera_name,
+                        "local": local_with_link,
                         "camera_id": str(camera_id),
                     })
                     if not success:
