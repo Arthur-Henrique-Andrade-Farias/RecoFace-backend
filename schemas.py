@@ -84,6 +84,8 @@ class BrandingResponse(BaseModel):
     brand_name: str
     brand_subtitle: str
     brand_logo_url: Optional[str]
+    primary_color: str = "#1e3a5f"
+    secondary_color: str = "#4a72b3"
 
     class Config:
         from_attributes = True
@@ -92,6 +94,8 @@ class BrandingResponse(BaseModel):
 class BrandingUpdate(BaseModel):
     brand_name: Optional[str] = None
     brand_subtitle: Optional[str] = None
+    primary_color: Optional[str] = None
+    secondary_color: Optional[str] = None
 
 
 # ─── Person Categories ──────────────────────────────────────────────────────

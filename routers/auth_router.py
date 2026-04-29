@@ -60,6 +60,8 @@ def _branding_response(org: models.Organization) -> schemas.BrandingResponse:
         brand_name=org.brand_name or "RecoFace",
         brand_subtitle=org.brand_subtitle or "Monitorando vidas",
         brand_logo_url=logo_url,
+        primary_color=org.primary_color or "#1e3a5f",
+        secondary_color=org.secondary_color or "#4a72b3",
     )
 
 
@@ -87,6 +89,10 @@ def update_branding(
         org.brand_name = data.brand_name
     if data.brand_subtitle is not None:
         org.brand_subtitle = data.brand_subtitle
+    if data.primary_color is not None:
+        org.primary_color = data.primary_color
+    if data.secondary_color is not None:
+        org.secondary_color = data.secondary_color
     db.commit()
     db.refresh(org)
     return _branding_response(org)

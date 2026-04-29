@@ -12,6 +12,8 @@ class Organization(Base):
     brand_name = Column(String(100), nullable=False, default="RecoFace")
     brand_subtitle = Column(String(100), nullable=False, default="Monitorando vidas")
     brand_logo_path = Column(String(500), nullable=True)
+    primary_color = Column(String(20), default="#1e3a5f")
+    secondary_color = Column(String(20), default="#4a72b3")
     telegram_bot_token = Column(String(255), nullable=True)
     telegram_notify_unrecognized = Column(Boolean, default=True)
     telegram_notify_recognized = Column(Boolean, default=False)
